@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "array": "c",
+        "internalflash.h": "c",
+        "stm32f1xx_hal.h": "c",
+        "canard.h": "c",
+        "main.h": "c",
+        "gpio.h": "c"
+    }
+}
