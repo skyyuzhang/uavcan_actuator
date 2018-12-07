@@ -78,6 +78,8 @@ void parametersLoad(void);
 
 void parametersSave(void);
 
+void led(void);
+
 void rawcmdHandleCanard(CanardRxTransfer* transfer);
 
 void getsetHandleCanard(CanardRxTransfer* transfer);

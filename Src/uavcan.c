@@ -12,6 +12,7 @@
 
 #define CANARD_SPIN_PERIOD      500
 #define PUBLISHER_PERIOD_mS     100
+#define SIGNALTEST_PERIOD_mS    1000
 #define FLASH_SAVE_ADDR         0x800F000
 
 bool rawcommandTag=false;
@@ -146,7 +147,6 @@ void receiveCanard(void)
     {
         canardHandleRxFrame(&g_canard, &rx_frame, HAL_GetTick() * 1000);
     }    
-       //
     signalTag(rawcommandTransfer);
 
 }
@@ -156,8 +156,6 @@ void spinCanard(void)
     static uint32_t spin_time = 0;
     if(HAL_GetTick() < spin_time + CANARD_SPIN_PERIOD) return;  // rate limiting
     spin_time = HAL_GetTick();
-    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_12);   
-    
     uint8_t buffer[UAVCAN_NODE_STATUS_MESSAGE_SIZE];    
     static uint8_t transfer_id = 0;                           // This variable MUST BE STATIC; refer to the libcanard documentation for the background
     makeNodeStatusMessage(buffer);  
@@ -176,8 +174,6 @@ void publishCanard(void)
     static uint32_t publish_time = 0;
     if(HAL_GetTick() < publish_time + PUBLISHER_PERIOD_mS) {return;} // rate limiting
     publish_time = HAL_GetTick();
- 
-
 }
 
 void makeNodeStatusMessage(uint8_t buffer[UAVCAN_NODE_STATUS_MESSAGE_SIZE])
@@ -219,9 +215,9 @@ void readUniqueID(uint8_t* out_uid)
 void rawcmdHandleCanard(CanardRxTransfer* transfer)
 {   
     /*****/
+     
     if(rawcommandTransfer==65535) rawcommandTransfer=0; 
     rawcommandTransfer++;
-    
     uint16_t vaule;
     int offset=((int)parameters[4].val*14);
     canardDecodeScalar(transfer, offset, 14, true, &vaule);
@@ -402,27 +398,41 @@ void parametersSave()
 
 bool signalTag(uint16_t transfer)
 {   
-   // HAL_UART_Transmit(&huart1,&transfer,2,0xffff);
-    static bool tag;
-    static uint16_t num=0;
     static uint16_t rxTag=0;
-    if(rxTag==transfer)
+    static uint32_t signal_time = 0;
+    if(HAL_GetTick() < signal_time + SIGNALTEST_PERIOD_mS) {return;} // rate limiting
+    signal_time = HAL_GetTick();
+
+    if(transfer==rxTag)
     {
-        tag=true;
-        HAL_GPIO_WritePin(LedPort,LedRed,LedOn);
-    }
-    else 
-    {   
+        HAL_UART_Transmit(&huart1,"no",2,0xffff);
+        rawcommandTag=true;
         //HAL_GPIO_WritePin(LedPort,LedRed,LedOff);
-        tag=false;
+        return true;
+    }   
+    else
+    {   
         rxTag=transfer;
-        num++;
+        HAL_UART_Transmit(&huart1,"ok",2,0xffff);
+        //HAL_GPIO_WritePin(LedPort,LedRed,LedOn);
+        rawcommandTag=false;
+        return false;
+
     }
-    if(num==100)
-    {
-        num=0;
-        HAL_GPIO_WritePin(LedPort,LedRed,LedOff);
-    }
-    return tag;   
 }
 
+
+void led()
+{
+    static uint32_t led_time = 0;
+    if(HAL_GetTick() < led_time + SIGNALTEST_PERIOD_mS) {return;} // rate limiting
+    led_time = HAL_GetTick();
+    if(rawcommandTag)
+    {
+        HAL_GPIO_TogglePin(LedPort,LedRed);
+    }
+    else
+    {
+        HAL_GPIO_WritePin(LedPort,LedRed,LedOn);
+    }  
+}

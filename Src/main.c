@@ -30,7 +30,7 @@ int main(void)
     sendCanard();
     receiveCanard();
     spinCanard();
-    ledStatus();
+    led();
   }
   
 
