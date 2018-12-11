@@ -16,12 +16,13 @@
 #define FLASH_SAVE_ADDR         0x800F000
 
 bool rawcommandTag=false;
+uint8_t nodeID=10;
 uint8_t LedStatus;
 uint8_t OutIndex;
 uint8_t g_canard_memory_pool[1024]; //Arena for memory allocation, used by the library
 uint16_t rawcommandTransfer=0;
 
-uint16_t FlashData[5]; //flash data address/
+uint16_t FlashData[4]; //flash data address/
 uint32_t FlashAddress=FLASH_SAVE_ADDR;    
 uint32_t g_uptime = 0;         
 static CanardInstance g_canard;//The library instance
@@ -30,10 +31,8 @@ param_t parameters[] =
     /* name      value  min max defavl*/
     {"NodeID",      0,  0,  100,   0},
     {"StatusRate",  0,  5,  100,  10},
-    {"OutMode",     0,  0,  3,     0},
     {"OutIndex",    0,  0,  20,    0},
     {"PWMFrequency",0,  490,1000,  0},
-    {"DshotRate",   0,  300,1200,  0},
     
 };
 
@@ -97,6 +96,8 @@ void getNodeInfoHandleCanard(CanardRxTransfer* transfer)
 void uavcanInit(void)
 {
     parametersLoad();
+    parameterCheck();
+    nodeID=parameters[0].val;
     CanardSTM32CANTimings timings;
     int result = canardSTM32ComputeCANTimings(HAL_RCC_GetPCLK1Freq(), 1000000, &timings);
     if (result)
@@ -115,7 +116,8 @@ void uavcanInit(void)
                onTransferReceived,                // Callback, see CanardOnTransferReception
                shouldAcceptTransfer,              // Callback, see CanardShouldAcceptTransfer
                NULL);
-    canardSetLocalNodeID(&g_canard, (uint8_t)parameters[0].val);
+               
+    canardSetLocalNodeID(&g_canard,nodeID);
     HAL_GPIO_WritePin(LedPort,LedRed,LedOff);
  
        
@@ -218,10 +220,11 @@ void rawcmdHandleCanard(CanardRxTransfer* transfer)
      
     if(rawcommandTransfer==65535) rawcommandTransfer=0; 
     rawcommandTransfer++;
-    uint16_t vaule;
-    int offset=((int)parameters[4].val*14);
+    int vaule;
+    int offset=((int)parameters[2].val*14);
     canardDecodeScalar(transfer, offset, 14, true, &vaule);
     pwmUpdate(vaule);
+
 }
 
 void pwmUpdate(uint16_t canVaule)
@@ -371,18 +374,19 @@ inline param_t * getParamByIndex(uint16_t index)
 
 void ledStatus()
 {
-  
+  signalTag(rawcommandTransfer);
 }
 
 void parametersLoad()
 {
       //**setup parameters from flash data**//
-    StmFlashRead(FlashAddress,FlashData,5);  
+    StmFlashRead(FlashAddress,FlashData,4);  
     parameters[0].val=FlashData[0];
     parameters[1].val=FlashData[1];
     parameters[2].val=FlashData[2];
     parameters[3].val=FlashData[3];
-    parameters[4].val=FlashData[4];   
+  
+    
 }
 
 void parametersSave()
@@ -391,8 +395,20 @@ void parametersSave()
     FlashData[1]=parameters[1].val;  
     FlashData[2]=parameters[2].val;  
     FlashData[3]=parameters[3].val;  
-    FlashData[4]=parameters[4].val;                 
-    StmFlashWrite(FlashAddress,FlashData,5);   
+                
+    StmFlashWrite(FlashAddress,FlashData,4);   
+}
+
+void parameterCheck()
+{
+    if(parameters[0].val>127 || parameters[0].val<1)
+        parameters[0].val=99;
+    if(parameters[1].val>100)
+        parameters[1].val=10;
+    if(parameters[2].val>20)
+        parameters[2].val=0;
+    if(parameters[3].val>1000)
+        parameters[3].val=0;
 }
 
 
@@ -415,7 +431,7 @@ bool signalTag(uint16_t transfer)
         rxTag=transfer;
         HAL_UART_Transmit(&huart1,"ok",2,0xffff);
         //HAL_GPIO_WritePin(LedPort,LedRed,LedOn);
-        rawcommandTag=false;
+       // rawcommandTag=false;
         return false;
 
     }

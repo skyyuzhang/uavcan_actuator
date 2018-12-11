@@ -19,6 +19,8 @@ int main(void)
   HAL_Init();
   SystemClock_Config();
   MX_GPIO_Init();
+
+
   MX_CAN_Init();
   MX_USART1_UART_Init();
   MX_TIM3_Init();
@@ -27,10 +29,17 @@ int main(void)
  
   while (1)
   {
+     // HAL_GPIO_WritePin(LedPort,LedRed,LedOn);
     sendCanard();
     receiveCanard();
     spinCanard();
     led();
+   // HAL_GPIO_WritePin(LedPort,LedRed,LedOn);
+   //// HAL_Delay(100);
+   // HAL_GPIO_WritePin(LedPort,LedRed,LedOff);
+   // HAL_Delay(100);
+    
+
   }
   
 
